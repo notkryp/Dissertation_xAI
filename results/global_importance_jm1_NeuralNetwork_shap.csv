@@ -1,0 +1,15 @@
+dataset,model,feature,mean_abs_shap
+jm1,NeuralNetwork,loc,0.07153448068816826
+jm1,NeuralNetwork,i,0.056697126447205495
+jm1,NeuralNetwork,uniq_Op,0.05432453875421131
+jm1,NeuralNetwork,v(g),0.05339332985183523
+jm1,NeuralNetwork,uniq_Opnd,0.052581444499442805
+jm1,NeuralNetwork,lOBlank,0.04587356297670159
+jm1,NeuralNetwork,ev(g),0.03793732506451601
+jm1,NeuralNetwork,l,0.033689262310681804
+jm1,NeuralNetwork,iv(g),0.03243254082572906
+jm1,NeuralNetwork,d,0.031048569228133083
+jm1,NeuralNetwork,lOComment,0.029910473724555214
+jm1,NeuralNetwork,n,0.0257243559809164
+jm1,NeuralNetwork,locCodeAndComment,0.025506441083916972
+jm1,NeuralNetwork,e,0.008910264562367386

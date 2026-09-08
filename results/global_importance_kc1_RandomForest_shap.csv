@@ -1,0 +1,10 @@
+dataset,model,feature,mean_abs_shap
+kc1,RandomForest,i,0.06197068896231031
+kc1,RandomForest,d,0.05618533451646614
+kc1,RandomForest,lOBlank,0.04459265509493604
+kc1,RandomForest,v(g),0.04382442296750819
+kc1,RandomForest,l,0.04346772568127121
+kc1,RandomForest,loc,0.04007138013383942
+kc1,RandomForest,lOComment,0.019997805574891295
+kc1,RandomForest,ev(g),0.012195944395867775
+kc1,RandomForest,locCodeAndComment,0.01054554379632771

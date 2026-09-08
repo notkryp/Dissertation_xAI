@@ -1,0 +1,5 @@
+dataset,label_column,n_instances_raw,n_instances_after_cleaning,duplicates_removed,correlated_features_dropped,n_features_final,defect_rate_pct,train_size,test_size,train_size_after_smote,cv_folds_verified
+cm1,defects,498,442,56,10,11,10.86,353,89,630,10
+kc1,defects,2109,1212,897,12,9,25.99,969,243,1434,10
+jm1,defects,13204,8908,4296,7,14,22.5,7126,1782,11046,10
+pc1,defects,1109,954,155,9,12,7.34,763,191,1414,10

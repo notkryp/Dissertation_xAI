@@ -1,0 +1,15 @@
+dataset,model,feature,mean_abs_shap
+jm1,GradientBoosting_XGBoost,loc,0.40693867
+jm1,GradientBoosting_XGBoost,iv(g),0.350252
+jm1,GradientBoosting_XGBoost,lOBlank,0.3014778
+jm1,GradientBoosting_XGBoost,ev(g),0.18094826
+jm1,GradientBoosting_XGBoost,locCodeAndComment,0.16731805
+jm1,GradientBoosting_XGBoost,d,0.16705252
+jm1,GradientBoosting_XGBoost,v(g),0.16573413
+jm1,GradientBoosting_XGBoost,i,0.14749733
+jm1,GradientBoosting_XGBoost,uniq_Op,0.12617318
+jm1,GradientBoosting_XGBoost,lOComment,0.118233256
+jm1,GradientBoosting_XGBoost,e,0.11037974
+jm1,GradientBoosting_XGBoost,n,0.10894966
+jm1,GradientBoosting_XGBoost,l,0.09489745
+jm1,GradientBoosting_XGBoost,uniq_Opnd,0.09218553
