@@ -1,24 +1,3 @@
-"""
-Data Pre-processing Pipeline for SDP Datasets (NASA/PROMISE)
-Chapter 3 / Chapter 4 - Explainable AI for Software Defect Prediction
-
-Usage:
-    1. pip install pandas numpy scikit-learn scipy
-       (optional, recommended: pip install imbalanced-learn -- see USE_IMBLEARN flag below)
-    2. Place downloaded dataset files (CSV or ARFF) in ./data/raw/
-    3. Update DATASET_PATHS below with the correct filenames.
-    4. Run: python preprocess.py
-
-Outputs (per dataset, in ./data/processed/):
-    <name>_train.csv                 raw (unscaled, unbalanced) training split
-    <name>_test.csv                  raw (unscaled) test split
-    <name>_train_smote.csv           SMOTE-balanced training split (unscaled) - for RF/XGBoost
-    <name>_train_scaled.csv          scaled training split (unbalanced) - for SVM/NN
-    <name>_test_scaled.csv           scaled test split
-    <name>_train_smote_scaled.csv    scaled + SMOTE-balanced training split - for SVM/NN
-    summary_report.csv               shape / defect-rate / cleaning summary across all datasets
-"""
-
 import re
 import pandas as pd
 import numpy as np
@@ -31,7 +10,6 @@ RAW_DIR = Path("data/raw")
 PROC_DIR = Path("data/processed")
 PROC_DIR.mkdir(parents=True, exist_ok=True)
 
-# Map dataset name -> filename in data/raw/. Adjust to match your downloaded files.
 DATASET_PATHS = {
     "cm1": "cm1.csv",
     "kc1": "kc1.csv",
@@ -44,17 +22,14 @@ N_FOLDS = 10
 TEST_SIZE = 0.2
 CORR_THRESHOLD = 0.9
 
-# If you `pip install imbalanced-learn`, set this to True to use the real SMOTE
-# implementation instead of the lightweight one included below (results should be
-# near-identical, but imblearn is the standard citation-backed reference implementation).
-USE_IMBLEARN = False
+USE_IMBLEARN = False  # set True if imbalanced-learn is installed, otherwise use my own SMOTE below
 
 LABEL_ALIASES = ["defects", "defect", "class", "bug", "label", "target"]
 POSITIVE_STRINGS = {"true", "yes", "y", "1", "t", "buggy", "defective"}
 NEGATIVE_STRINGS = {"false", "no", "n", "0", "f", "clean", "non-defective"}
 
 
-def load_raw_file(path: Path) -> pd.DataFrame:
+def load_raw_file(path: Path) -> pd.DataFrame: # Reads either .csv or .arff since the NASA/PROMISE datasets come in both formats
     """Load CSV or ARFF into a DataFrame."""
     if path.suffix.lower() == ".arff":
         from scipy.io import arff
@@ -67,7 +42,8 @@ def load_raw_file(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def find_label_column(df: pd.DataFrame) -> str:
+def find_label_column(df: pd.DataFrame) -> str:  # Every dataset names its defect column differently, so search for common names first
+    # and just grab the last column if nothing matches
     """Identify the defect-label column by name match, fallback to last column."""
     for alias in LABEL_ALIASES:
         for col in df.columns:
@@ -75,7 +51,8 @@ def find_label_column(df: pd.DataFrame) -> str:
                 return col
     return df.columns[-1]
 
-
+# The label column can be True/False, yes/no, 1/0, etc depending on the dataset
+    # this turns all of that into a plain 0/1 integer
 def standardise_label(series: pd.Series) -> pd.Series:
     """Convert defect label of any encoding (bool/str/int) into 0/1 ints."""
     def convert(v):
@@ -95,7 +72,9 @@ def standardise_label(series: pd.Series) -> pd.Series:
     return series.apply(convert).astype(int)
 
 
-def clean_dataframe(df: pd.DataFrame, label_col: str):
+
+ # Basic cleaning: drop ID-like columns (they don't help prediction), remove duplicate
+def clean_dataframe(df: pd.DataFrame, label_col: str): # rows, and fill any missing values with the column median
     """Drop identifier columns and duplicates; impute missing numeric values with the median."""
     df = df.copy()
 
@@ -129,9 +108,10 @@ def remove_correlated_features(df: pd.DataFrame, label_col: str, threshold: floa
 
 def simple_smote(X: pd.DataFrame, y: pd.Series, random_state: int = RANDOM_SEED, k_neighbors: int = 5):
     """
-    Minimal SMOTE implementation (Chawla et al., 2002) using k-NN interpolation,
-    used as a dependency-free fallback when imbalanced-learn is not installed.
-    Oversamples the minority class up to parity with the majority class.
+    My own basic version of SMOTE (Chawla et al., 2002) in case imbalanced-learn
+    isn't available. It finds the k nearest neighbours of each minority-class point
+    and creates a new synthetic point somewhere between them, until the minority
+    class matches the majority class count.
     """
     rng = np.random.RandomState(random_state)
     counts = y.value_counts()
@@ -167,7 +147,8 @@ def simple_smote(X: pd.DataFrame, y: pd.Series, random_state: int = RANDOM_SEED,
     return X_res, y_res
 
 
-def apply_smote(X: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+ 
+def apply_smote(X: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, pd.Series]: 
     if USE_IMBLEARN:
         from imblearn.over_sampling import SMOTE
         sm = SMOTE(random_state=RANDOM_SEED)
@@ -175,7 +156,7 @@ def apply_smote(X: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, pd.Series]
         return pd.DataFrame(X_res, columns=X.columns), pd.Series(y_res, name=y.name)
     return simple_smote(X, y)
 
-
+ # This runs the full pipeline for one dataset: load, clean, split, scale, SMOTE, save
 def process_dataset(name: str, filename: str, summary_rows: list):
     path = RAW_DIR / filename
     if not path.exists():
@@ -194,10 +175,12 @@ def process_dataset(name: str, filename: str, summary_rows: list):
     y = df[label_col]
     defect_rate = y.mean()
 
+# Split before SMOTE so the test set stays untouched
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, stratify=y, random_state=RANDOM_SEED
     )
 
+ # Scaled version needed separately for SVM and the Neural Network  
     scaler = StandardScaler()
     X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train), columns=X_train.columns, index=X_train.index)
     X_test_scaled = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns, index=X_test.index)
@@ -217,8 +200,8 @@ def process_dataset(name: str, filename: str, summary_rows: list):
     save(X_test_scaled, y_test, "test_scaled")
     save(X_train_res_scaled, y_train_res_scaled, "train_smote_scaled")
 
-    # 10-fold stratified indices are generated fresh (same seed) inside the Chapter 4
-    # modelling script for WPDP cross-validation; not persisted here to avoid duplication.
+  # modelling script for WPDP cross-validation; not persisted here to avoid duplication.
+
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_SEED)
     n_folds_check = sum(1 for _ in skf.split(X, y))
 
@@ -239,8 +222,7 @@ def process_dataset(name: str, filename: str, summary_rows: list):
     print(f"[OK] {name}: {len(df)} rows -> {X.shape[1]} features, defect rate {defect_rate:.2%}, "
           f"train {len(X_train)} -> {len(X_train_res)} after SMOTE")
 
-
-def main():
+def main(): # Loops through all four datasets and writes one combined summary CSV at the end
     summary_rows = []
     for name, filename in DATASET_PATHS.items():
         process_dataset(name, filename, summary_rows)

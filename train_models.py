@@ -1,26 +1,3 @@
-"""
-Chapter 4 - Model Training Script
-Explainable AI for Software Defect Prediction
-
-Trains Random Forest, XGBoost (Gradient Boosting), SVM, and Neural Network
-(scikit-learn MLPClassifier) on the four pre-processed datasets (CM1, KC1,
-JM1, PC1), with grid search hyperparameter tuning, and evaluates on the
-held-out test sets.
-
-Before running:
-    pip install pandas numpy scikit-learn xgboost joblib
-
-Folder structure expected (from preprocess.py output):
-    data/processed/<name>_train_smote.csv
-    data/processed/<name>_test.csv
-    data/processed/<name>_train_smote_scaled.csv
-    data/processed/<name>_test_scaled.csv
-
-Outputs:
-    results/model_results.csv       - one row per (dataset, model) with best
-                                       hyperparameters and test-set metrics
-    models/<dataset>_<model>.pkl    - saved trained models (for Chapter 4 XAI script)
-"""
 
 import os
 import time
@@ -41,14 +18,14 @@ CV_FOLDS = 5
 os.makedirs("results", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 
-
+# loading one processed csv (train/test/smote) and splitting it into X and y
 def load_split(name, suffix):
     df = pd.read_csv(f"data/processed/{name}_{suffix}.csv")
     y = df["defects"]
     X = df.drop(columns=["defects"])
     return X, y
 
-
+# calculates all the metrics I need for one model in one go
 def evaluate(y_true, y_pred, y_prob):
     return {
         "accuracy": accuracy_score(y_true, y_pred),
@@ -59,7 +36,7 @@ def evaluate(y_true, y_pred, y_prob):
         "mcc": matthews_corrcoef(y_true, y_pred),
     }
 
-
+# runs grid search for one model on one dataset, saves the best model, returns its scores
 def run_grid(name, model_key, estimator, param_grid, X_train, y_train, X_test, y_test):
     grid = GridSearchCV(estimator, param_grid, cv=CV_FOLDS, scoring="f1", n_jobs=-1)
     t0 = time.time()
@@ -76,13 +53,13 @@ def run_grid(name, model_key, estimator, param_grid, X_train, y_train, X_test, y
                      "best_params": grid.best_params_, "train_time_s": round(train_time, 2)})
     return metrics
 
-
+# goes through all 4 datasets and trains all 4 models on each one
 def main():
     all_results = []
 
     for name in DATASETS:
         print(f"\n=== {name.upper()} ===")
-
+ # RF and XGBoost use the unscaled SMOTE data, they don't need scaling
         X_train, y_train = load_split(name, "train_smote")
         X_test, y_test = load_split(name, "test")
 
@@ -99,6 +76,8 @@ def main():
         all_results.append(run_grid(name, "GradientBoosting_XGBoost",
                                      XGBClassifier(random_state=RANDOM_SEED, eval_metric="logloss"),
                                      xgb_grid, X_train, y_train, X_test, y_test))
+        
+ # SVM and NN need the scaled SMOTE data since they're sensitive to feature scale
 
         X_train_s, y_train_s = load_split(name, "train_smote_scaled")
         X_test_s, y_test_s = load_split(name, "test_scaled")
@@ -115,7 +94,8 @@ def main():
         all_results.append(run_grid(name, "NeuralNetwork",
                                      MLPClassifier(max_iter=500, random_state=RANDOM_SEED, early_stopping=True),
                                      nn_grid, X_train_s, y_train_s, X_test_s, y_test_s))
-
+        
+# dumping all 16 results into one csv for analysis later
     results_df = pd.DataFrame(all_results)
     results_df.to_csv("results/model_results.csv", index=False)
     print("\nAll done. Results written to results/model_results.csv")

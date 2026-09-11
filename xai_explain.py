@@ -1,53 +1,3 @@
-"""
-Chapter 4 (continued) - Explainability (SHAP + LIME) Implementation
-Explainable AI for Software Defect Prediction
-
-WHY EACH PARAMETER IS SET THE WAY IT IS (for viva prep - keep this reasoning):
-
-- TreeSHAP (Random Forest, XGBoost): uses feature_perturbation="tree_path_dependent",
-  which computes EXACT Shapley values directly from tree structure, needs NO
-  background dataset, and avoids a known SHAP/XGBoost incompatibility where the
-  alternative "interventional" method does not yet support XGBoost's categorical
-  split handling. No sampling/capping applied - full test set is explained for
-  both tree models.
-
-  IMPORTANT: tree_path_dependent's additive output space differs by model type:
-    - Random Forest (sklearn): leaves store probability estimates directly, so
-      the natively comparable output is model.predict_proba()[:, 1].
-    - XGBoost: leaves store additive log-odds ("margin") contributions, so the
-      natively comparable output is model.predict(X, output_margin=True).
-  get_native_raw_output() below handles this distinction so the fidelity check
-  compares SHAP's reconstruction against the CORRECT output space per model.
-
-- Kernel SHAP (SVM, Neural Network/MLPClassifier): non-tree models, so SHAP must
-  estimate Shapley values via perturbation sampling, which is combinatorially
-  expensive by construction (true on any hardware). Three standard,
-  literature-backed knobs keep it tractable without weakening validity:
-    1. BACKGROUND_SIZE = 100   -> background summarised via k-means (shap.kmeans),
-       SHAP's own documented recommendation (Lundberg & Lee, 2017).
-    2. N_LOCAL_INSTANCES = 100 -> capped at dataset test size where smaller.
-       Within the commonly used 50-200 range in published XAI-for-SDP studies.
-    3. NSAMPLES = 200          -> reduced from SHAP's "auto" default (~2076) to
-       keep computation tractable given JM1's SVM being ~400x slower per-
-       prediction than the other datasets' SVMs (Chapter 4, Section 4.7).
-
-- LIME: applied uniformly to ALL FOUR models (model-agnostic by design), same
-  N_LOCAL_INSTANCES=100 sample for consistency. num_samples=1000 per explanation
-  (LIME's own common default).
-
-- STABILITY computed on a smaller sub-sample (STABILITY_INSTANCES=20) by
-  re-running the SAME explanation twice with different random seeds and
-  measuring Spearman rank correlation between the two feature rankings.
-
-Before running:
-    pip install shap lime joblib pandas numpy scikit-learn xgboost scipy
-
-Outputs:
-    results/global_importance_<dataset>_<model>_shap.csv
-    results/explanation_quality.csv
-    results/local_explanations_sample.csv
-"""
-
 import os
 import time
 import joblib
@@ -72,11 +22,11 @@ LIME_NUM_SAMPLES = 1000
 
 os.makedirs("results", exist_ok=True)
 
-
+# loads the already-trained model saved by train_models.py
 def load_model(dataset, model_key):
     return joblib.load(f"models/{dataset}_{model_key}.pkl")
 
-
+# picks the scaled or unscaled version of the data depending on the model
 def load_data(dataset, model_key):
     suffix = "scaled" if model_key in KERNEL_MODELS else ""
     train_file = f"data/processed/{dataset}_train_smote" + ("_scaled" if suffix else "") + ".csv"
@@ -87,14 +37,13 @@ def load_data(dataset, model_key):
     X_test, y_test = test.drop(columns=["defects"]), test["defects"]
     return X_train, y_train, X_test, y_test
 
-
+# just grabs the probability of the defective class
 def predict_proba_positive(model, X):
     return model.predict_proba(X)[:, 1]
 
-
+'''SHAP's output shape changes between versions, this makes sure I always get
+a plain 2D array for the defective class no matter which version is installed '''
 def normalize_shap_output(shap_values, expected_value, positive_class_idx=1):
-    """Handle both older SHAP (list of per-class arrays) and newer SHAP
-    (single 3D ndarray: samples x features x classes) output formats."""
     if isinstance(shap_values, list):
         sv = shap_values[positive_class_idx]
         ev = expected_value[positive_class_idx] if isinstance(expected_value, (list, np.ndarray)) else expected_value
@@ -108,10 +57,7 @@ def normalize_shap_output(shap_values, expected_value, positive_class_idx=1):
         ev = ev_arr[positive_class_idx] if ev_arr is not None and ev_arr.size > 1 else expected_value
     return sv, ev
 
-
 def get_native_raw_output(model, X, model_key):
-    """Returns the output space that matches TreeSHAP's tree_path_dependent
-    additive reconstruction for each model type (see module docstring)."""
     if model_key == "RandomForest":
         return model.predict_proba(X)[:, 1]
     elif model_key == "GradientBoosting_XGBoost":
@@ -119,11 +65,8 @@ def get_native_raw_output(model, X, model_key):
     else:
         return predict_proba_positive(model, X)
 
-
+# runs exact TreeSHAP on RF/XGBoost over the whole test set and checks fidelity
 def run_tree_shap(model, X_test, dataset, model_key, results):
-    """Exact SHAP for tree ensembles via tree_path_dependent (no background
-    needed, avoids SHAP/XGBoost categorical-split incompatibility). Full test
-    set explained - no sampling/capping."""
     print(f"  [SHAP-Tree] {dataset}/{model_key}: explaining full test set ({len(X_test)} instances)")
     t0 = time.time()
     explainer = shap.TreeExplainer(model, feature_perturbation="tree_path_dependent")
@@ -150,7 +93,7 @@ def run_tree_shap(model, X_test, dataset, model_key, results):
     })
     return shap_values
 
-
+# runs Kernel SHAP on SVM/NN, uses a small background+sample set to keep it feasible
 def run_kernel_shap(model, X_train, X_test, dataset, model_key, results):
     n_local = min(N_LOCAL_INSTANCES, len(X_test))
     X_sample = X_test.sample(n=n_local, random_state=RANDOM_SEED)
@@ -168,7 +111,7 @@ def run_kernel_shap(model, X_train, X_test, dataset, model_key, results):
     actual = predict_proba_positive(model, X_sample)
     fidelity_mae = np.mean(np.abs(reconstructed - actual))
 
-    n_stab = min(STABILITY_INSTANCES, n_local)
+    n_stab = min(STABILITY_INSTANCES, n_local) # stability check: rerun the explainer on the same instances and see how much the ranking moves
     X_stab = X_sample.iloc[:n_stab]
     explainer2 = shap.KernelExplainer(lambda x: predict_proba_positive(model, x), background)
     shap_values_rerun = explainer2.shap_values(X_stab, nsamples=NSAMPLES)
@@ -194,7 +137,7 @@ def run_kernel_shap(model, X_train, X_test, dataset, model_key, results):
     })
     return shap_values, X_sample
 
-
+# runs LIME per-instance on the same sample of test rows, also checks fidelity and stability
 def run_lime(model, X_train, X_test, dataset, model_key, results):
     n_local = min(N_LOCAL_INSTANCES, len(X_test))
     X_sample = X_test.sample(n=n_local, random_state=RANDOM_SEED)
@@ -205,7 +148,7 @@ def run_lime(model, X_train, X_test, dataset, model_key, results):
         class_names=["clean", "defective"], mode="classification",
         random_state=RANDOM_SEED
     )
-
+# LIME gives its own local R2 score per instance, this is just collecting that
     fidelities, local_top_features = [], []
     t0 = time.time()
     for idx in range(n_local):
@@ -252,7 +195,7 @@ def run_lime(model, X_train, X_test, dataset, model_key, results):
     })
     return pd.DataFrame(local_top_features)
 
-
+# runs SHAP + LIME for every (dataset, model) combo and saves all the results
 def main():
     quality_results = []
     all_local_lime = []
@@ -263,7 +206,7 @@ def main():
             model = load_model(dataset, model_key)
             X_train, y_train, X_test, y_test = load_data(dataset, model_key)
 
-            if model_key in TREE_MODELS:
+            if model_key in TREE_MODELS:  # tree models get exact TreeSHAP, the other two get Kernel SHAP
                 run_tree_shap(model, X_test, dataset, model_key, quality_results)
             else:
                 run_kernel_shap(model, X_train, X_test, dataset, model_key, quality_results)
