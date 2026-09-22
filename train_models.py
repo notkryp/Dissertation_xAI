@@ -43,6 +43,15 @@ def run_grid(name, model_key, estimator, param_grid, X_train, y_train, X_test, y
     grid.fit(X_train, y_train)
     train_time = time.time() - t0
 
+# Save the full grid search
+    cv_df = pd.DataFrame(grid.cv_results_)[
+        ["params", "mean_test_score", "std_test_score", "rank_test_score", "mean_fit_time"]
+    ]
+    cv_df["dataset"] = name
+    cv_df["model"] = model_key
+    cv_df = cv_df.sort_values("rank_test_score")
+    cv_df.to_csv(f"results/gridsearch_{name}_{model_key}.csv", index=False)
+
     best = grid.best_estimator_
     y_pred = best.predict(X_test)
     y_prob = best.predict_proba(X_test)[:, 1]

@@ -1,0 +1,7 @@
+params,mean_test_score,std_test_score,rank_test_score,mean_fit_time,dataset,model
+"{'hidden_layer_sizes': (128, 64, 32), 'learning_rate_init': 0.01}",0.87524516089554,0.045709799686818514,1,0.34461727142333987,cm1,NeuralNetwork
+"{'hidden_layer_sizes': (64, 32), 'learning_rate_init': 0.01}",0.8184002921312477,0.02791329924103552,2,0.126104736328125,cm1,NeuralNetwork
+"{'hidden_layer_sizes': (128, 64, 32), 'learning_rate_init': 0.001}",0.7959308836705592,0.050306073080920936,3,0.34491891860961915,cm1,NeuralNetwork
+"{'hidden_layer_sizes': (32,), 'learning_rate_init': 0.01}",0.7894007000903341,0.03859430976795896,4,0.1308133602142334,cm1,NeuralNetwork
+"{'hidden_layer_sizes': (64, 32), 'learning_rate_init': 0.001}",0.7735735334244093,0.0752849684628475,5,0.23924918174743653,cm1,NeuralNetwork
+"{'hidden_layer_sizes': (32,), 'learning_rate_init': 0.001}",0.6920559733029507,0.04199025872331523,6,0.20931711196899414,cm1,NeuralNetwork

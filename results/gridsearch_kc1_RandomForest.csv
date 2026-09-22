@@ -1,0 +1,10 @@
+params,mean_test_score,std_test_score,rank_test_score,mean_fit_time,dataset,model
+"{'max_depth': 20, 'n_estimators': 100}",0.813009137842236,0.08197201519019481,1,0.9449103832244873,kc1,RandomForest
+"{'max_depth': None, 'n_estimators': 100}",0.812287048010073,0.07665014560322501,2,0.47772941589355467,kc1,RandomForest
+"{'max_depth': None, 'n_estimators': 300}",0.8091834343229944,0.08427376778911636,3,1.9538278579711914,kc1,RandomForest
+"{'max_depth': 20, 'n_estimators': 200}",0.8091245379298473,0.088177246582968,4,1.1125616550445556,kc1,RandomForest
+"{'max_depth': 20, 'n_estimators': 300}",0.808901517850735,0.08126915126164502,5,1.7146449565887452,kc1,RandomForest
+"{'max_depth': None, 'n_estimators': 200}",0.8085991082013642,0.08832383353043974,6,1.202785587310791,kc1,RandomForest
+"{'max_depth': 10, 'n_estimators': 200}",0.7938570381140659,0.08338488848620874,7,1.3549230575561524,kc1,RandomForest
+"{'max_depth': 10, 'n_estimators': 300}",0.7921284385135948,0.0768283006767944,8,1.8442292213439941,kc1,RandomForest
+"{'max_depth': 10, 'n_estimators': 100}",0.791664062100722,0.07883356843287964,9,0.6928043842315674,kc1,RandomForest
